@@ -2236,9 +2236,13 @@ int ha_ibmdb2i::create(const char *name, TABLE *table_arg,
   char colName[MAX_DB2_COLNAME_LENGTH+1];
   bool isTemporary;
 
-
+  fprintf(stderr, "IN ha_ibmdb2i::create\n");
+  fprintf(stderr, "Passed in name: %s and lib name: %s\n", name, libName);
   db2i_table::getDB2LibNameFromPath(name, libName);
+  fprintf(stderr, " Before getDB2FileNameFromPath\n");
+  fprintf(stderr, "Passed in name: %s and fileName: %s\n", name, fileName);
   db2i_table::getDB2FileNameFromPath(name, fileName);
+  fprintf(stderr, "osVersion.v %d\n", osVersion.v);
 
   if (osVersion.v < 6)
   {

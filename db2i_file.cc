@@ -329,13 +329,17 @@ void db2i_table::getDB2QualifiedNameFromPath(const char* path, char* to)
 
 size_t db2i_table::smartFilenameToTableName(const char *in, char* out, size_t outlen)
 {
+  fprintf(stderr, "IN smartFilenameToTableName, in: %s, out: %s, outlen: %d\n", in, out, outlen);
   if (strchr(in, '@') == NULL)
   {
+    fprintf(stderr, "in contains @ Callinf filename_to_tablename\n");
     return filename_to_tablename(in, out, outlen);
   }
   
+  fprintf(stderr, "before my_malloc of test\n");
   char* test = (char*) my_malloc(outlen, MYF(MY_WME));
   
+  fprintf(stderr, "Calling filename_to_tablename\n");
   filename_to_tablename(in, test, outlen);
 
   char* cur = test;
@@ -352,25 +356,31 @@ size_t db2i_table::smartFilenameToTableName(const char *in, char* out, size_t ou
   }
 
   strncpy(out, test, outlen);
+  fprintf(stderr, "out: %s\n", out);
   my_free(test);
   return min(outlen, strlen(out));
 }
 
 void db2i_table::filenameToTablename(const char* in, char* out, size_t outlen)
 {
+  fprintf(stderr, "IN filenameToTablename, in: %s, out: %s, outlen: %d\n", in, out, outlen);
   if (strchr(in, '#') == NULL)
   {
+    fprintf(stderr, "IN strchr # check, calling smartFilenameToTableName\n");
     smartFilenameToTableName(in, out, outlen);
     return;
   }
-
+  
+  fprintf(stderr, "Before my_malloc\n");
   char* temp = (char*)my_malloc(outlen, MYF(MY_THREAD_SPECIFIC | MY_FAE | MY_ZEROFILL));
+  fprintf(stderr, "After my_malloc\n");
   
   const char* part1, *part2, *part3, *part4;
   part1 = in;
   part2 = strstr(part1, "#P#");
   if (part2)
   {
+    fprintf(stderr, "IN part2 check\n");
     part3 = part2 + 3;
     part4 = strchr(part3, '#');
     if (!part4)
@@ -380,10 +390,12 @@ void db2i_table::filenameToTablename(const char* in, char* out, size_t outlen)
   memcpy(temp, part1, min(outlen, part2 - part1));
   temp[min(outlen-1, part2-part1)] = 0;
     
+  fprintf(stderr, "Calling smartFilenameToTableName\n");
   int32 accumLen = smartFilenameToTableName(temp, out, outlen);
   
   if (part2 && (accumLen + 4 < (int) outlen))
   {
+    fprintf(stderr, "IN part2 && check\n");
     strcat(out, "#P#");
     accumLen += 4;
     
@@ -391,6 +403,7 @@ void db2i_table::filenameToTablename(const char* in, char* out, size_t outlen)
     memcpy(temp, part3, min(outlen, part4-part3));
     temp[min(outlen-1, part4-part3)] = 0;
 
+    fprintf(stderr, "Calling smartFilenameToTableName\n");
     accumLen += smartFilenameToTableName(temp, strend(out), outlen-accumLen);
     
     if (part4 && (accumLen + (strend(in) - part4 + 1) < (int) outlen))
@@ -403,9 +416,12 @@ void db2i_table::filenameToTablename(const char* in, char* out, size_t outlen)
 
 void db2i_table::getDB2LibNameFromPath(const char* path, char* lib, NameFormatFlags format)
 {
+  fprintf(stderr, "IN getDB2LibNameFromPath, path: %s, lib: %s\n", path, lib);
   if (strstr(path, mysql_tmpdir) == path)
   {
+    fprintf(stderr, "Setting lib to DB2I_TEMP_TABLE_SCHEMA\n");
     strcpy(lib, DB2I_TEMP_TABLE_SCHEMA);
+    fprintf(stderr, "lib: %s\n");
   }
   else
   {  
@@ -413,46 +429,64 @@ void db2i_table::getDB2LibNameFromPath(const char* path, char* lib, NameFormatFl
     while (c > path && *c != '\\' && *c != '/')
       --c;
 
+    fprintf(stderr, "c: %s\n", c);
     if (c != path)
     {
+      fprintf(stderr, "IN c != path\n");
       const char* dbEnd = c;
+      fprintf(stderr, "dbend: %s\n", dbEnd);
       do {
         --c;
       } while (c >= path && *c != '\\' && *c != '/');
 
       if (c >= path)
       {
+        fprintf(stderr, "IN c >= path\n");
         const char* dbStart = c+1;
+        fprintf(stderr, "dbStart: %s\n", dbEnd);
         char fileName[FN_REFLEN];
         memcpy(fileName, dbStart, dbEnd - dbStart);
         fileName[dbEnd-dbStart] = 0;
+        fprintf(stderr, "fileName: %s\n", fileName);
         
         char dbName[MAX_DB2_SCHEMANAME_LENGTH+1];
+        fprintf(stderr, "Before filenameToTablename\n");
         filenameToTablename(fileName, dbName , sizeof(dbName));
+        fprintf(stderr, "Before convertMySQLNameToDB2Name");
         
         convertMySQLNameToDB2Name(dbName, lib, sizeof(dbName), true, (format==ASCII_SQL) );
       }
-      else
+      else 
+      {
+        fprintf(stderr, "Woah in else leg that should never happen!\n");
         DBUG_ASSERT(0); // This should never happen!
+      }
     }
   }
 }
 
 void db2i_table::getDB2FileNameFromPath(const char* path, char* file, NameFormatFlags format)
 {
+  fprintf(stderr, "IN getDB2FileNameFromPath, path: %s, file: %s\n", path, file);
   const char* fileEnd = strend(path);
+  fprintf(stderr, "fileEnd: %s\n", fileEnd);
   const char* c = fileEnd;
   while (c > path && *c != '\\' && *c != '/')
     --c;
 
   if (c != path)
   {
+    fprintf(stderr, "In c != path\n");
     const char* fileStart = c+1;
+    fprintf(stderr, "fileStart: %s\n", fileStart);
     char fileName[FN_REFLEN];
     memcpy(fileName, fileStart, fileEnd - fileStart);
+    fprintf(stderr, "fileName: %s\n", fileName);
     fileName[fileEnd - fileStart] = 0;
     char db2Name[MAX_DB2_FILENAME_LENGTH+1];
+    fprintf(stderr, "Before filenameToTablename\n");
     filenameToTablename(fileName, db2Name, sizeof(db2Name));
+    fprintf(stderr, "Before convertMySQLNameToDB2Name");  
     convertMySQLNameToDB2Name(db2Name, file, sizeof(db2Name), true, (format==ASCII_SQL) );
   }
 }
